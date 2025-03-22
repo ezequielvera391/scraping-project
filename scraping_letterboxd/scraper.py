@@ -9,7 +9,6 @@ from selenium.webdriver.chrome.service import Service
 from scraping_letterboxd.utils import setup_logger, ensure_dir_exists, log_summary
 from scraping_letterboxd.config import BASE_URL, DATA_PATH, OUTPUT_PATH, LOG_PATH
 
-# Configurar logger
 ensure_dir_exists("results")
 logger = setup_logger(LOG_PATH)
 
@@ -25,8 +24,8 @@ def setup_driver() -> webdriver.Chrome | None:
         options.add_argument("--no-sandbox") 
         options.add_argument("--disable-dev-shm-usage") 
 
-        service = Service(ChromeDriverManager().install())  # Configura el servicio correctamente
-        driver = webdriver.Chrome(service=service, options=options)  # Usa service y options correctamente
+        service = Service(ChromeDriverManager().install())  
+        driver = webdriver.Chrome(service=service, options=options) 
         return driver
     except Exception as e:
         print(f"Error al iniciar el WebDriver: {e}")
@@ -34,7 +33,7 @@ def setup_driver() -> webdriver.Chrome | None:
 def get_poster_url(poster_url):
     driver = setup_driver()
     driver.get(poster_url)
-    time.sleep(3)
+    time.sleep(2)
 
     try:
         poster_element = driver.find_element(By.CSS_SELECTOR, "section.poster-list a[data-js-trigger='postermodal']")
