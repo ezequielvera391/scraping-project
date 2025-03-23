@@ -6,16 +6,14 @@ from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
-from scraping_letterboxd.utils import setup_logger, ensure_dir_exists, log_summary
-from scraping_letterboxd.config import BASE_URL, DATA_PATH, OUTPUT_PATH, LOG_PATH
+from scraping_letterboxd.utils import setup_logger, ensure_dir_exists, log_summary, generate_id
+from scraping_letterboxd.config import BASE_URL, DATA_PATH, OUTPUT_PATH, LOG_PATH, CLIENT_ASSETS_PATH
 
 ensure_dir_exists("results")
 logger = setup_logger(LOG_PATH)
 
-
 def setup_driver() -> webdriver.Chrome | None:
     try:
-        
         options = webdriver.ChromeOptions()
         options.add_argument("--headless") 
         options.add_argument("--ignore-certificate-errors")  
@@ -30,18 +28,39 @@ def setup_driver() -> webdriver.Chrome | None:
     except Exception as e:
         print(f"Error al iniciar el WebDriver: {e}")
         return  
-def get_poster_url(poster_url):
-    driver = setup_driver()
-    driver.get(poster_url)
-    time.sleep(2)
 
+def get_movie_data(film_url, film_name):
+    driver = setup_driver()
+    driver.get(film_url)
+    time.sleep(2)
+    
     try:
+        title = driver.find_element(By.CSS_SELECTOR, "h1.headline-1").text
+        sinopsis = driver.find_element(By.CSS_SELECTOR, "div.truncate p").text
+        year = int(driver.find_element(By.CSS_SELECTOR, "div.releaseyear a").text)
+        director = driver.find_element(By.CSS_SELECTOR, "a.text-slug").text
+        genero = driver.find_element(By.CSS_SELECTOR, "a[href*='/films/genre/']").text
+        actors = [elem.text for elem in driver.find_elements(By.CSS_SELECTOR, "a[href*='/actor/']")][:5]
+        
         poster_element = driver.find_element(By.CSS_SELECTOR, "section.poster-list a[data-js-trigger='postermodal']")
-        poster_url = poster_element.get_attribute("href")
+        poster_url = poster_element.get_attribute("href") # TODO: descarga el cover horizontal y guardarlo en otra carpeta
+        
         driver.quit()
-        return poster_url
+        
+        return {
+            "title": title,
+            "sinopsis": sinopsis,
+            "year": year,
+            "director": {"id": generate_id(director), "name": director},
+            "genero": {"id": generate_id(genero), "name": genero},
+            "cover": f"{CLIENT_ASSETS_PATH}{film_name}-cover.jpg",
+            "was_watched": False,
+            "rating": None,
+            "actors": [{"id": generate_id(actor), "name": actor} for actor in actors],
+            "poster_url": poster_url
+        }
     except Exception as e:
-        logger.error(f"Error obteniendo póster de {poster_url}: {e}")
+        logger.error(f"Error obteniendo datos de {film_url}: {e}")
         driver.quit()
         return None
 
@@ -74,20 +93,26 @@ def main():
     total = len(movies)
     success = 0
     failed_movies = []
+    movie_data_list = []
 
-    for movie in movies:
+    for idx, movie in enumerate(movies, start=1):
         film_name = movie["title"].replace(" ", "-").lower()
         film_url = f"{BASE_URL}{film_name}/"
-
-        poster_url = get_poster_url(film_url)
-        if poster_url:
+        
+        movie_data = get_movie_data(film_url, film_name)
+        if movie_data:
             save_path = os.path.join(OUTPUT_PATH, f"{film_name}-cover.jpg")
-            if download_image(poster_url, save_path):
+            if download_image(movie_data["poster_url"], save_path):
+                movie_data["id"] = idx
+                movie_data_list.append(movie_data)
                 success += 1
             else:
                 failed_movies.append(film_name)
         else:
             failed_movies.append(film_name)
+
+    with open(os.path.join(OUTPUT_PATH, "movies_data.json"), "w", encoding="utf-8") as json_file:
+        json.dump(movie_data_list, json_file, indent=2, ensure_ascii=False)
 
     log_summary(logger, total, success, failed_movies)
 

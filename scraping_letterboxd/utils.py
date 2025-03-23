@@ -1,5 +1,6 @@
 import os
 import logging
+import uuid
 
 def setup_logger(log_path=None):
     """Configura un logger que imprime en consola y opcionalmente guarda en archivo."""
@@ -28,3 +29,7 @@ def log_summary(logger, total, success, failed_movies):
         logger.info("Failed movies:")
         for movie in failed_movies:
             logger.info(f"- {movie}")
+
+
+def generate_id(value):
+    return uuid.uuid5(uuid.NAMESPACE_DNS, value).int >> 64
