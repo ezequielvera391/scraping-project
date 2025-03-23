@@ -7,7 +7,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from scraping_letterboxd.utils import setup_logger, ensure_dir_exists, log_summary, generate_id
-from scraping_letterboxd.config import BASE_URL, DATA_PATH, OUTPUT_PATH, LOG_PATH, CLIENT_ASSETS_PATH
+from scraping_letterboxd.config import BASE_URL, DATA_PATH, OUTPUT_PATH, LOG_PATH, CLIENT_COVERS_PATH, OUTPUT_COVERS_PATH, OUTPUT_POSTERS_PATH, CLIENT_POSTERS_PATH
 
 ensure_dir_exists("results")
 logger = setup_logger(LOG_PATH)
@@ -32,7 +32,7 @@ def setup_driver() -> webdriver.Chrome | None:
 def get_movie_data(film_url, film_name):
     driver = setup_driver()
     driver.get(film_url)
-    time.sleep(2)
+    time.sleep(3)
     
     try:
         title = driver.find_element(By.CSS_SELECTOR, "h1.headline-1").text
@@ -41,23 +41,29 @@ def get_movie_data(film_url, film_name):
         director = driver.find_element(By.CSS_SELECTOR, "a.text-slug").text
         genero = driver.find_element(By.CSS_SELECTOR, "a[href*='/films/genre/']").text
         actors = [elem.text for elem in driver.find_elements(By.CSS_SELECTOR, "a[href*='/actor/']")][:5]
-        
-        poster_element = driver.find_element(By.CSS_SELECTOR, "section.poster-list a[data-js-trigger='postermodal']")
-        poster_url = poster_element.get_attribute("href") # TODO: descarga el cover horizontal y guardarlo en otra carpeta
-        
+        cover_element = driver.find_element(By.CSS_SELECTOR, "section.poster-list a[data-js-trigger='postermodal']")
+        cover_url = cover_element.get_attribute("href")
+        backdrop_element = driver.find_element(By.ID, "backdrop")
+        poster_url = backdrop_element.get_attribute("data-backdrop")
+
+        poster_filename = f"{film_name}-poster.jpg"
+        poster_path = os.path.join(OUTPUT_POSTERS_PATH, poster_filename)
+        download_image(poster_url, poster_path)
+
         driver.quit()
-        
+
         return {
             "title": title,
             "sinopsis": sinopsis,
             "year": year,
             "director": {"id": generate_id(director), "name": director},
             "genero": {"id": generate_id(genero), "name": genero},
-            "cover": f"{CLIENT_ASSETS_PATH}{film_name}-cover.jpg",
+            "cover": f"{CLIENT_COVERS_PATH}{film_name}-cover.jpg",
             "was_watched": False,
             "rating": None,
             "actors": [{"id": generate_id(actor), "name": actor} for actor in actors],
-            "poster_url": poster_url
+            "poster_url": f"{CLIENT_POSTERS_PATH}{film_name}-poster.jpg",  # Ruta local del poster descargado
+            "cover_url": cover_url
         }
     except Exception as e:
         logger.error(f"Error obteniendo datos de {film_url}: {e}")
@@ -101,9 +107,10 @@ def main():
         
         movie_data = get_movie_data(film_url, film_name)
         if movie_data:
-            save_path = os.path.join(OUTPUT_PATH, f"{film_name}-cover.jpg")
-            if download_image(movie_data["poster_url"], save_path):
+            save_path = os.path.join(OUTPUT_COVERS_PATH, f"{film_name}-cover.jpg")
+            if download_image(movie_data["cover_url"], save_path):
                 movie_data["id"] = idx
+                del movie_data["cover_url"]
                 movie_data_list.append(movie_data)
                 success += 1
             else:

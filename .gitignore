@@ -2,8 +2,12 @@ venv/
 logs/*
 !logs/.gitkeep
 
-results/*
+results/*.json
 !results/.gitkeep
+results/covers/*
+results/posters/*
+!results/covers/.gitkeep
+!results/posters/.gitkeep
 
 __pycache__/
 scraping_letterboxd/__pycache__/
