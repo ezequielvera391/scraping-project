@@ -1,7 +1,7 @@
 # Scraping Letterboxd
 
 Este proyecto permite realizar scraping en **Letterboxd** para construir un conjunto de datos de películas.
-Extrae información detallada de cada película y descarga sus pósters, generando un **dataset reutilizable** para cualquier aplicación que necesite información cinematográfica similar a Letterboxd.
+Extrae información detallada de cada película y descarga tanto su **póster** como su **cover** (miniatura), generando un **dataset reutilizable** para cualquier aplicación que necesite información cinematográfica similar a Letterboxd.
 
 ---
 
@@ -70,20 +70,23 @@ Para iniciar el scraping, ejecuta:
 python scraping_letterboxd/main.py
 ```
 
-El scraper procesará cada película de la lista de entrada, descargando su portada y extrayendo su información.
+El scraper procesará cada película de la lista de entrada, descargando su portada (cover), su póster y extrayendo su información.
 
 ---
 
 ## Salida del sistema
 
-El scraper genera dos tipos de salida:
+El scraper genera tres tipos de salida:
 
 1. **Pósters de películas**
-   - Se guardan en la carpeta `results/`.
+   - Se guardan en la carpeta `results/posters/`.
+   - Los archivos tienen el siguiente formato: `{nombre-pelicula}-poster.jpg`.
+   
+2. **Covers (miniaturas) de películas**
+   - Se guardan en la carpeta `results/covers/`.
    - Los archivos tienen el siguiente formato: `{nombre-pelicula}-cover.jpg`.
-   - La ruta en el JSON de salida se ajusta según la configuración.
-
-2. **JSON con información de películas**
+   
+3. **JSON con información de películas**
    - Se almacena en `results/movie_data.json`.
    - La estructura del JSON es la siguiente:
 
@@ -108,7 +111,7 @@ El scraper genera dos tipos de salida:
       {"id": 12756022148002307130, "name": "Christian Friedel"},
       {"id": 11991609446548266039, "name": "Sandra Hüller"}
     ],
-    "poster_url": "https://a.ltrbxd.com/resized/film-poster/3/9/8/8/0/0/398800-the-zone-of-interest-0-1000-0-1500-crop.jpg?v=0514f658e1",
+    "poster_url": "assets/images/temp/posters/the-zone-of-interest-poster.jpg",
     "id": 3
   }
 ]
@@ -125,10 +128,15 @@ Puedes modificar las rutas de entrada, salida y logs en el archivo `config.py`:
 BASE_URL = "https://letterboxd.com/film/"
 
 # Rutas de almacenamiento
-DATA_PATH = "./data/movies.json" # De este archivo toma las peliculas que va a buscar
-OUTPUT_PATH = "results/" # En esta ruta se guardan las imagenes
-LOG_PATH = "logs/scraping.log" # En esta ruta se guardan los logs
-CLIENT_ASSETS_PATH = "assets/images/temp/cards/" # Es la ruta del cliente para que el json quede armado correctamente y no necesite modificaciones
+DATA_PATH = "./data/movies.json"  # De este archivo toma las películas que va a buscar
+OUTPUT_PATH = "results/"  # En esta ruta se guarda el archivo JSON
+OUTPUT_COVERS_PATH = "results/covers/"  # En esta ruta se guardan las portadas miniatura 16:9
+OUTPUT_POSTERS_PATH = "results/posters/"  # En esta ruta se guardan las portadas apaisadas
+LOG_PATH = "logs/scraping.log"  # En esta ruta se guardan los logs
+
+# Rutas para el cliente
+CLIENT_COVERS_PATH = "assets/images/temp/cards/"  # Ruta del cover para el cliente
+CLIENT_POSTERS_PATH = "assets/images/temp/posters/"  # Ruta de la portada para el cliente
 ```
 
 ---
