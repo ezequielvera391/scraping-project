@@ -1,7 +1,9 @@
+import logging
 import os
 import time
 import json
 import requests
+from datetime import datetime
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
@@ -10,10 +12,12 @@ from scraping_letterboxd.utils import setup_logger, ensure_dir_exists, log_summa
 from scraping_letterboxd.config import BASE_URL, DATA_PATH, OUTPUT_PATH, LOG_PATH, CLIENT_COVERS_PATH, OUTPUT_COVERS_PATH, OUTPUT_POSTERS_PATH, CLIENT_POSTERS_PATH
 
 ensure_dir_exists("results")
-logger = setup_logger(LOG_PATH)
+logger = setup_logger(f"{LOG_PATH}scraping.log")
 
 def setup_driver() -> webdriver.Chrome | None:
     try:
+        log_file = os.path.join(LOG_PATH, f"selenium-{datetime.now().strftime('%Y-%m-%d')}.log")
+
         options = webdriver.ChromeOptions()
         options.add_argument("--headless")
         options.add_argument("--ignore-certificate-errors")
@@ -21,13 +25,17 @@ def setup_driver() -> webdriver.Chrome | None:
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--log-level=3")  
+        options.add_argument("--enable-unsafe-swiftshader")
+        options.add_experimental_option("excludeSwitches", ["enable-logging"]) 
+        
+        service = Service(ChromeDriverManager().install(), log_output=log_file)
 
-        service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
         return driver
     except Exception as e:
-        logger.error(f"Error al iniciar el WebDriver: {e}")
-        return 
+        logging.error(f"Error al iniciar el WebDriver: {e}")
+        return None
 
 def get_movie_data(film_name, year):
     """
@@ -83,10 +91,11 @@ def get_movie_data(film_name, year):
                 "poster_url": f"{CLIENT_POSTERS_PATH}{poster_filename}"
             }
         except Exception as e:
-            logger.warning(f"Error obteniendo datos desde {film_url}: {e}")
+            logger.warning(f"❌ Error obteniendo datos desde {film_url}")
 
             # Si la primera búsqueda falló y no hay segunda URL, se corta el intento
             if index == 0 and len(film_urls) == 1:
+                print(f"🔄 Reintentando con URL que incluye el año: {film_urls[1]}")
                 break
 
     driver.quit()
@@ -105,10 +114,10 @@ def download_image(image_url, save_path):
             logger.info(f"Imagen guardada en {save_path}")
             return True
         else:
-            logger.error(f"Error al descargar la imagen: {response.status_code}")
+            logger.error("❌ Error al descargar la imagen")
             return False
     except Exception as e:
-        logger.error(f"Error en la descarga: {e}")
+        logger.error("❌ Error en la descarga")
         return False
 
 def main():
@@ -129,18 +138,26 @@ def main():
     for idx, movie in enumerate(movies, start=1):
         film_name = movie["title"].replace(" ", "-").lower()
         year = movie.get("year", "")
+        
+        logger.info(f"🔍 Buscando datos para: {film_name} ({year})")
         movie_data = get_movie_data(film_name, year)
 
         if movie_data:
             movie_data["id"] = idx
             movie_data_list.append(movie_data)
             success += 1
+            logger.info(f"✅ Película encontrada: {movie_data['title']}")
+            logger.info("")  # Línea en blanco
         else:
             failed_movies.append(film_name)
+            logger.warning(f"❌ No se encontraron datos para: {film_name}")
+            logger.warning("")  # Línea en blanco
 
-    with open(os.path.join(OUTPUT_PATH, "movies_data.json"), "w", encoding="utf-8") as json_file:
+    output_file = os.path.join(OUTPUT_PATH, "movies_data.json")
+    with open(output_file, "w", encoding="utf-8") as json_file:
         json.dump(movie_data_list, json_file, indent=2, ensure_ascii=False)
-
+    
+    logger.info(f"📁 Datos guardados en {output_file}")
     log_summary(logger, total, success, failed_movies)
 
 if __name__ == "__main__":
